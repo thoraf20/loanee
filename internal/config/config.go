@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/spf13/viper"
 )
@@ -45,4 +46,11 @@ func (c *Config) GetDBURL() string {
 		"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
 		c.DBHost, c.DBUser, c.DBPassword, c.DBName, c.DBPort,
 	)
+}
+
+func getEnv(key, fallback string) string {
+	if val, exists := os.LookupEnv(key); exists {
+		return val
+	}
+	return fallback
 }
