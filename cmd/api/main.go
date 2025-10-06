@@ -6,13 +6,21 @@ import (
 	"net/http"
 
 	dbConfig "github.com/thoraf20/loanee/internal/config"
+	database "github.com/thoraf20/loanee/internal/db"
 	router "github.com/thoraf20/loanee/internal/http"
+	utils "github.com/thoraf20/loanee/internal/utils"
 )
 
 func main() {
 	cfg, err := dbConfig.LoadConfig()
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
+	}
+
+	utils.InitLogger(cfg.AppEnv)
+
+	if err := database.Connect(cfg); err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
 	}
 
 	router := router.NewRouter()
