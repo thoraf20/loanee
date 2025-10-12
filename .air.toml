@@ -1,0 +1,45 @@
+# Air configuration file for loanee
+# https://github.com/air-verse/air@latest
+
+
+# Root directory
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # Command to build your app
+  cmd = "go build -o ./tmp/main.exe ./main.go"
+
+  # Binary file produced by the build command
+  bin = "tmp/main.exe"
+
+  # Watch these extensions
+  include_ext = ["go", "env", "yaml", "yml"]
+
+  # Ignore these directories
+  exclude_dir = ["vendor", "tmp", "migrations", ".git", "docs"]
+
+  # Delay restart to avoid multiple rebuilds during quick saves
+  delay = 500 # milliseconds
+
+  # Send SIGTERM to the old process before restarting
+  kill_signal = "SIGTERM"
+
+  # If true, shows log from both build and app
+  log = "build-errors"
+
+  full_bin = true
+
+[log]
+  time = true
+  color = true
+
+[color]
+  main = "cyan"
+  watcher = "yellow"
+  build = "green"
+  runner = "blue"
+  app = "magenta"
+
+[misc]
+  clean_on_exit = true

@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"syscall"
 	"time"
-	"os/signal"
 
-	"github.com/rs/cors"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
+	"github.com/rs/cors"
+	"github.com/rs/zerolog/log"
 
+	"github.com/thoraf20/loanee/api/routes"
 	config "github.com/thoraf20/loanee/config"
 	database "github.com/thoraf20/loanee/db"
 	utils "github.com/thoraf20/loanee/internal/utils"
@@ -20,24 +22,43 @@ import (
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		panic("failed to load config")
+		log.Fatal().Err(err).Msg("failed to load config")
 	}
 
 	utils.InitLogger(cfg.AppEnv)
+	log.Info().Msg("Logger initialized successfully")
 
 	if err := database.Connect(cfg); 
 	err != nil {
-		panic("failed to connect to database")
+		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
 
-	err = database.DB.AutoMigrate()
+	defer func() {
+		sqlDB, err := database.DB.DB()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to obtain sql.DB to close")
+			return
+		}
+		if cerr := sqlDB.Close(); 
+		cerr != nil {
+			log.Error().Err(cerr).Msg("failed to close database connection")
+		}
+	}()
 
-	if err != nil {
-		fmt.Printf("Migration error: %v\n", err)
-		panic("failed to migrate database")
-	}
+	log.Info().Msg("Database connected successfully")
+
+	database.RunMigrations(cfg)
+	log.Info().Msg("Database migrations completed")
 
 	router := mux.NewRouter()
+	api := router.PathPrefix("/api/v1").Subrouter()
+	// extract the underlying *sql.DB from gorm and wrap it with sqlx so routes expecting *sqlx.DB can be used
+	sqlDB, err := database.DB.DB()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to obtain sql.DB from gorm.DB")
+	}
+	sqlxDB := sqlx.NewDb(sqlDB, "postgres")
+	routes.HandleAuthRoutes(api, sqlxDB)
 
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -48,35 +69,30 @@ func main() {
 	})
 
 	server := &http.Server{
-		Addr:    ":" + cfg.AppPort,
-		Handler: corsMiddleware.Handler(router),
+		Addr:              ":" + cfg.AppPort,
+		Handler:           corsMiddleware.Handler(router),
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	// defer database.c
-
 	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			if err != http.ErrServerClosed {
-				fmt.Printf("HTTP server error: %v\n", err)
-			}
+		log.Info().Msgf("Server started on port %s", cfg.AppPort)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal().Err(err).Msg("server crashed unexpectedly")
 		}
 	}()
-
-	fmt.Println("Server started on port " + cfg.AppPort)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	fmt.Println("Server shutting down...")
 
-	// Create a deadline to wait for
+	log.Warn().Msg("Server shutting down gracefully...")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Doesn't block if no connections, but will otherwise wait until the timeout deadline
 	if err := server.Shutdown(ctx); err != nil {
-		fmt.Printf("Server forced to shutdown: %v\n", err)
+		log.Fatal().Err(err).Msg("forced to shutdown server")
 	}
 
-	fmt.Println("Server exited properly")
+	log.Info().Msg("Server stopped cleanly")
 }

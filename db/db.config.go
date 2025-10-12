@@ -1,7 +1,6 @@
 package database
 
 import (
-	"log"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -33,6 +32,5 @@ func Connect(cfg *config.Config) error {
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	DB = db
-	log.Println("Database connected successful")
 	return nil
 }
