@@ -48,7 +48,7 @@ func (c *Config) GetDBURL() string {
 	)
 }
 
-func getEnv(key, fallback string) string {
+func GetEnv(key, fallback string) string {
 	if val, exists := os.LookupEnv(key); exists {
 		return val
 	}

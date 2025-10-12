@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/thoraf20/loanee/internal/config"
+	"github.com/thoraf20/loanee/config"
 )
 
 var DB *gorm.DB
