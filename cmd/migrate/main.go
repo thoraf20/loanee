@@ -23,12 +23,11 @@ func main() {
 	// Build database URL
 	dbURL := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.DBUser,
-		cfg.DBPassword,
-		cfg.DBHost,
-		// cfg.DBPort,
-		strconv.Itoa(cfg.DBPort),
-		cfg.DBName,
+		cfg.Database.User,
+		cfg.Database.Password,
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.Name,
 	)
 
 	// Migration path (ensure relative path is correct)

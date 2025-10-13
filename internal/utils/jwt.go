@@ -24,7 +24,7 @@ type JWTClaims struct {
 // GenerateToken creates a new JWT token for a user
 func GenerateToken(user models.User) (string, error) {
 	// Get JWT secret from config
-	jwtSecret := config.GetEnv("JWTSecret", "")
+	jwtSecret := config.GetConfig().JWTSecret
 	if jwtSecret == "" {
 		return "", errors.New("JWT secret is not configured")
 	}
@@ -61,7 +61,7 @@ func GenerateToken(user models.User) (string, error) {
 // ValidateToken validates a JWT token and returns the claims
 func ValidateToken(tokenString string) (*JWTClaims, error) {
 	// Get JWT secret from config
-	jwtSecret := config.GetEnv("JWTSecret", "")
+	jwtSecret := config.GetConfig().JWTSecret
 	if jwtSecret == "" {
 		return nil, errors.New("JWT secret is not configured")
 	}
@@ -101,7 +101,6 @@ func SetUserIDInContext(ctx context.Context, userID uuid.UUID) context.Context {
 	return context.WithValue(ctx, userIDKey, userID)
 }
 
-// GetUserIDFromContext retrieves the user ID from the context
 // GetUserIDFromContext retrieves the user ID from the context
 func GetUserIDFromContext(ctx context.Context) (uuid.UUID, error) {
 	userID, ok := ctx.Value(userIDKey).(uuid.UUID)

@@ -17,7 +17,7 @@ func Connect(cfg *config.Config) error {
 		Logger: logger.Default.LogMode(logger.Info),
 	}
 
-	db, err := gorm.Open(postgres.Open(cfg.GetDBURL()), gormConfig)
+	db, err := gorm.Open(postgres.Open(cfg.Database.GetDatabaseString()), gormConfig)
 	if err != nil {
 		return err
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
+	"github.com/joho/godotenv"
 
 	"github.com/thoraf20/loanee/api/routes"
 	config "github.com/thoraf20/loanee/config"
@@ -20,10 +21,15 @@ import (
 )
 
 func main() {
+	 // Load .env manually before viper
+  _ = godotenv.Load()
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
+
+	log.Printf("Environment: %s", cfg.Database.Host)
 
 	utils.InitLogger(cfg.AppEnv)
 	log.Info().Msg("Logger initialized successfully")
@@ -69,13 +75,13 @@ func main() {
 	})
 
 	server := &http.Server{
-		Addr:              ":" + cfg.AppPort,
+		Addr:              ":" + cfg.Server.AppPort,
 		Handler:           corsMiddleware.Handler(router),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
-		log.Info().Msgf("Server started on port %s", cfg.AppPort)
+		log.Info().Msgf("Server started on port %s", cfg.Server.AppPort)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("server crashed unexpectedly")
 		}

@@ -13,7 +13,7 @@ import (
 func RunMigrations(cfg *config.Config) {
 	m, err := migrate.New(
 		"file://db/migrations",
-		cfg.GetDBURL(),
+		cfg.Database.GetDatabaseString(),
 	)
 	if err != nil {
 		log.Fatalf("Migration init failed: %v", err)
