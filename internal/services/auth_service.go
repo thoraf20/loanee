@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+	"github.com/thoraf20/loanee/internal/cache"
 	"github.com/thoraf20/loanee/internal/dtos"
 	"github.com/thoraf20/loanee/internal/models"
 	"github.com/thoraf20/loanee/internal/repo"
@@ -18,7 +20,10 @@ import (
 // AuthService defines all authentication-related operations
 type AuthService interface {
 	RegisterUser(ctx context.Context, input dtos.RegisterUserDTO) (*models.User, error)
+	VerifyEmail(ctx context.Context, input dtos.VerifyEmailDTO) (map[string]string, error)
 	LoginUser(ctx context.Context, input dtos.LoginDTO) (string, error)
+	PasswordResetRequest(ctx context.Context, input dtos.PasswordRequestDTO) (map[string]string, error)
+	PasswordReset(ctx context.Context, input dtos.PasswordResetDTO) (map[string]string, error)
 }
 
 // authService implementation
@@ -67,7 +72,49 @@ func (s *authService) RegisterUser(ctx context.Context, input dtos.RegisterUserD
 
 	user.Password = ""
 
+	code := utils.GenerateCode(6)
+
+	fmt.Print(code, "code")
+
+	// Store code in Redis with TTL (10 minutes)
+	cacheKey := fmt.Sprintf("email-verification-%s", email)
+	cache.CacheSet(cacheKey, code, 10*time.Minute)
+
 	return user, nil
+}
+
+func (s *authService) VerifyEmail(ctx context.Context, input dtos.VerifyEmailDTO) (map[string]string, error) {
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	cacheKey := fmt.Sprintf("email-verification-%s", email)
+	storedCode, err := cache.CacheGet(cacheKey)
+	if err != nil {
+		if err == redis.Nil {
+			return nil, errors.New("reset code expired or not found")
+		}
+		return nil, fmt.Errorf("error fetching reset code: %v", err)
+	}
+
+	if storedCode != input.Code {
+		return nil, errors.New("invalid reset code")
+	}
+
+	user.IsVerified = true
+	user.UpdatedAt = time.Now()
+
+	if err := s.repo.UpdateUser(ctx, user); err != nil {
+		return nil, fmt.Errorf("failed to update password: %w", err)
+	}
+
+	cache.Redis.Del(cache.Ctx, cacheKey)
+
+	return map[string]string{
+		"message": "email verification successful",
+	}, nil
 }
 
 func (s *authService) LoginUser(ctx context.Context, input dtos.LoginDTO) (string, error) {
@@ -96,4 +143,61 @@ func (s *authService) LoginUser(ctx context.Context, input dtos.LoginDTO) (strin
 	}
 
 	return token, nil
+}
+func (s *authService) PasswordResetRequest(ctx context.Context, input dtos.PasswordRequestDTO) (map[string]string, error) {
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	code := utils.GenerateCode(6)
+
+	cacheKey := fmt.Sprintf("password-reset-%s", email)
+	cache.CacheSet(cacheKey, code, 10*time.Minute)
+
+	return map[string]string{
+		"message":    "password reset code generated",
+		"reset_code": code, //remove this in production
+	}, nil
+}
+
+func (s *authService) PasswordReset(ctx context.Context, input dtos.PasswordResetDTO) (map[string]string, error) {
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	cacheKey := fmt.Sprintf("password-reset-%s", email)
+	storedCode, err := cache.CacheGet(cacheKey)
+	if err != nil {
+		if err == redis.Nil {
+			return nil, errors.New("reset code expired or not found")
+		}
+		return nil, fmt.Errorf("error fetching reset code: %v", err)
+	}
+
+	if storedCode != input.Code {
+		return nil, errors.New("invalid reset code")
+	}
+
+	// Hash new password
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	user.Password = string(hash)
+	user.UpdatedAt = time.Now()
+
+	if err := s.repo.UpdateUser(ctx, user); err != nil {
+		return nil, fmt.Errorf("failed to update password: %w", err)
+	}
+
+	cache.Redis.Del(cache.Ctx, cacheKey)
+
+	return map[string]string{
+		"message": "password reset successful",
+	}, nil
 }

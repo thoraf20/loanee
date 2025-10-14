@@ -8,13 +8,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
-	"github.com/joho/godotenv"
 
 	"github.com/thoraf20/loanee/api/routes"
 	config "github.com/thoraf20/loanee/config"
 	database "github.com/thoraf20/loanee/db"
+	"github.com/thoraf20/loanee/internal/cache"
 	utils "github.com/thoraf20/loanee/internal/utils"
 )
 
@@ -57,6 +58,8 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to obtain sql.DB from gorm.DB")
 	}
+
+	cache.InitRedis()
 
 	// routes.NewRouter expects *sql.DB, pass the underlying *sql.DB
 	router := routes.NewRouter(cfg, goOrm)

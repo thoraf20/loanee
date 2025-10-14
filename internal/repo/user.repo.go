@@ -15,6 +15,7 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *models.User) error
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)
+	UpdateUser(ctx context.Context, user *models.User) error
 	UpdateLastLogin(ctx context.Context, id uuid.UUID) error
 }
 
@@ -65,6 +66,10 @@ func (r *userRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 		return nil, fmt.Errorf("failed to get user by id: %w", err)
 	}
 	return &user, nil
+}
+
+func (r *userRepository) UpdateUser(ctx context.Context, user *models.User) error {
+	return r.db.WithContext(ctx).Save(user).Error
 }
 
 func (r *userRepository) UpdateLastLogin(ctx context.Context, id uuid.UUID) error {
