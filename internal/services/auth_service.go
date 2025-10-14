@@ -35,11 +35,14 @@ func NewAuthService(repo repository.UserRepository) AuthService {
 func (s *authService) RegisterUser(ctx context.Context, input dtos.RegisterUserDTO) (*models.User, error) {
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 
-	existingUser, _ := s.repo.GetUserByEmail(ctx, email)
+	existingUser, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing user: %w", err)
+	}
 	if existingUser != nil {
 		return nil, errors.New("email already registered")
 	}
-
+	
 	// Hash password
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -70,8 +73,9 @@ func (s *authService) RegisterUser(ctx context.Context, input dtos.RegisterUserD
 func (s *authService) LoginUser(ctx context.Context, input dtos.LoginDTO) (string, error) {
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 	user, err := s.repo.GetUserByEmail(ctx, email)
+
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", errors.New("invalid credentials")
 	}
 
 	// Compare password

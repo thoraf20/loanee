@@ -8,8 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
 	"github.com/joho/godotenv"
@@ -28,8 +26,6 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
-
-	log.Printf("Environment: %s", cfg.Database.Host)
 
 	utils.InitLogger(cfg.AppEnv)
 	log.Info().Msg("Logger initialized successfully")
@@ -56,15 +52,14 @@ func main() {
 	database.RunMigrations(cfg)
 	log.Info().Msg("Database migrations completed")
 
-	router := mux.NewRouter()
-	api := router.PathPrefix("/api/v1").Subrouter()
-	// extract the underlying *sql.DB from gorm and wrap it with sqlx so routes expecting *sqlx.DB can be used
-	sqlDB, err := database.DB.DB()
+	// extract the underlying *sql.DB from gorm
+	goOrm, err := database.DB.DB()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to obtain sql.DB from gorm.DB")
 	}
-	sqlxDB := sqlx.NewDb(sqlDB, "postgres")
-	routes.HandleAuthRoutes(api, sqlxDB)
+
+	// routes.NewRouter expects *sql.DB, pass the underlying *sql.DB
+	router := routes.NewRouter(cfg, goOrm)
 
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

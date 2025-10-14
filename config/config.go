@@ -2,55 +2,86 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
-	"github.com/spf13/viper"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	AppEnv     string
-	AppPort    string
-	DBHost     string
-	DBPort     int
-	DBUser     string
-	DBPassword string
-	DBName     string
-	JWTSecret  string
+	Database  DatabaseConfig
+	Server    ServerConfig
+	JWTSecret string
+	AppEnv       string
 }
 
-func LoadConfig() (*Config, error) {
-	viper.SetConfigFile(".env")
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("No .env file found, reading from environment variables")
-	}
-
-	cfg := &Config{
-		AppEnv:     viper.GetString("APP_ENV"),
-		AppPort:    viper.GetString("APP_PORT"),
-		DBHost:     viper.GetString("DB_HOST"),
-		DBPort:     viper.GetInt("DB_PORT"),
-		DBUser:     viper.GetString("DB_USER"),
-		DBPassword: viper.GetString("DB_PASS"),
-		DBName:     viper.GetString("DB_NAME"),
-		JWTSecret:  viper.GetString("JWT_SECRET"),
-	}
-
-	return cfg, nil
+type DatabaseConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
+	Env      string
 }
 
-func (c *Config) GetDBURL() string {
+type ServerConfig struct {
+	AppPort string
+}
+
+func (d *DatabaseConfig) GetDatabaseString() string {
 	return fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
-		c.DBHost, c.DBUser, c.DBPassword, c.DBName, c.DBPort,
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		d.User,
+		d.Password,
+		d.Host,
+		d.Port,
+		d.Name,
+		d.SSLMode,
 	)
 }
 
-func GetEnv(key, fallback string) string {
-	if val, exists := os.LookupEnv(key); exists {
-		return val
+func LoadConfig() (*Config, error) {
+
+	godotenv.Load()
+
+	return &Config{
+		Database: DatabaseConfig{
+			Host:     getEnv("DB_HOST", "localhost"),
+			Port:     getEnv("DB_PORT", "5432"),
+			User:     getEnv("DB_USER", "postgres"),
+			Password: getEnv("DB_PASS", "postgres"),
+			Name:     getEnv("DB_NAME", "loanee"),
+			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+		},
+		Server: ServerConfig{
+			AppPort: getEnv("APP_PORT", "8080"),
+		},
+		JWTSecret: getEnv("JWT_SECRET", "your-256-bit-secret"),
+		AppEnv:       getEnv("APP_ENV", "development"),
+	}, nil
+}
+
+func getEnv(key string, defaultValue string) string {
+
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
-	return fallback
+	return defaultValue
+}
+
+// Global config instance
+var config *Config
+
+// GetConfig returns the application configuration
+// It loads the configuration if it hasn't been loaded yet
+func GetConfig() *Config {
+	if config == nil {
+		var err error
+		config, err = LoadConfig()
+		if err != nil {
+			panic("Failed to load configuration: " + err.Error())
+		}
+	}
+	return config
 }

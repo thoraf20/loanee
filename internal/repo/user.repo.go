@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/thoraf20/loanee/internal/models"
+	"gorm.io/gorm"
 )
 
 type UserRepository interface {
@@ -17,25 +19,25 @@ type UserRepository interface {
 }
 
 type userRepository struct {
-	db *sqlx.DB
+	db *gorm.DB
 }
 
-func NewUserRepository(db *sqlx.DB) UserRepository {
+func NewUserRepository(db *gorm.DB) UserRepository {
+	if db == nil {
+		panic("nil *gorm.DB passed to UserRepository")
+	}
 	return &userRepository{db: db}
 }
 
 func (r *userRepository) CreateUser(ctx context.Context, user *models.User) error {
-	query := `
-		INSERT INTO users (
-			id, first_name, last_name, email, password_hash, created_at, updated_at
-		) VALUES (
-			:id, :first_name, :last_name, :email, :password_hash, NOW(), NOW()
-		)
-	`
+	user.ID = uuid.New()
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
 
-	user.ID = uuid.New() // ensure user ID generated here
-	_, err := r.db.NamedExecContext(ctx, query, user)
-	if err != nil {
+	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return fmt.Errorf("email already registered")
+		}
 		return fmt.Errorf("error creating user: %w", err)
 	}
 	return nil
@@ -43,28 +45,36 @@ func (r *userRepository) CreateUser(ctx context.Context, user *models.User) erro
 
 func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
-	query := `SELECT * FROM users WHERE email = $1 LIMIT 1`
-
-	if err := r.db.GetContext(ctx, &user, query, email); 
-	err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user: %w", err)
 	}
 	return &user, nil
 }
 
 func (r *userRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	var user models.User
-	query := `SELECT * FROM users WHERE id = $1 LIMIT 1`
-
-	if err := r.db.GetContext(ctx, &user, query, id); err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+	err := r.db.WithContext(ctx).First(&user, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user by id: %w", err)
 	}
 	return &user, nil
 }
 
 func (r *userRepository) UpdateLastLogin(ctx context.Context, id uuid.UUID) error {
-	query := `UPDATE users SET last_login = NOW(), updated_at = NOW() WHERE id = $1`
-	_, err := r.db.ExecContext(ctx, query, id)
+	err := r.db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"last_login": time.Now(),
+			"updated_at": time.Now(),
+		}).Error
+
 	if err != nil {
 		return fmt.Errorf("failed to update last login: %w", err)
 	}

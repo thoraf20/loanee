@@ -3,16 +3,21 @@ package routes
 import (
 	"net/http"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/thoraf20/loanee/api/handlers"
-	"github.com/thoraf20/loanee/internal/services"
+	database "github.com/thoraf20/loanee/db"
 	"github.com/thoraf20/loanee/internal/repo"
+	"github.com/thoraf20/loanee/internal/services"
+	"gorm.io/gorm"
 
 	"github.com/gorilla/mux"
 )
 
-func HandleAuthRoutes(api *mux.Router, db *sqlx.DB) {
-	userRepo := repository.NewUserRepository(db)
+func HandleAuthRoutes(api *mux.Router, db *gorm.DB) {
+	if db == nil {
+		panic("nil *gorm.DB passed to HandleAuthRoutes")
+	}
+
+	userRepo := repository.NewUserRepository(database.DB)
 	authService := services.NewAuthService(userRepo)
 	authHandler := handlers.NewAuthHandler(authService)
 

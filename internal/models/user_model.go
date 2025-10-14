@@ -7,17 +7,17 @@ import (
 )
 
 type User struct {
-	ID      uuid.UUID  `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	FirstName       string     `json:"first_name" db:"first_name"`
-	LastName        string     `json:"last_name" db:"last_name"`
-	Email           string     `json:"email" db:"email"`
-	Password        string     `json:"-" db:"password"`
-	PhoneNumber     string     `json:"phone_number" db:"phone_number"`
-	IsVerified      bool       `json:"is_verified" db:"is_verified"`
-	KYCStatus       string     `json:"kyc_status" db:"kyc_status"` // pending|verified|rejected
-	PreferredFiat   string     `json:"preferred_fiat" db:"preferred_fiat"` // e.g. NGN, USD
-	DefaultCurrency string     `json:"default_currency" db:"default_currency"`
-	LastLogin       *time.Time `json:"last_login,omitempty" db:"last_login"`
-	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at" db:"updated_at"`
+	ID              uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+  FirstName       string     `gorm:"type:varchar(100);not null" json:"first_name"`
+	LastName        string     `gorm:"type:varchar(100);not null" json:"last_name"`
+	Email           string     `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
+	Password        string     `gorm:"type:varchar(255);not null" json:"-"`
+  PhoneNumber     *string    `gorm:"type:varchar(20)" json:"phone_number,omitempty"`
+	IsVerified      bool       `gorm:"default:false" json:"is_verified"`
+	KYCStatus       string     `gorm:"type:varchar(50);default:'pending'" json:"kyc_status"`
+	PreferredFiat   string     `gorm:"type:varchar(10);default:'NGN'" json:"preferred_fiat"` // e.g., NGN, USD
+	DefaultCurrency string     `gorm:"type:varchar(10);default:'NGN'" json:"default_currency"`
+	LastLogin       *time.Time `json:"last_login,omitempty"`
+	CreatedAt       time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }

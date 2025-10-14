@@ -20,7 +20,6 @@ func NewAuthHandler(authService services.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-// RegisterUser handles user registration
 func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var input dtos.RegisterUserDTO
 
@@ -36,7 +35,7 @@ func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.authService.RegisterUser(ctx, input)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to register user")
-		utils.Error(w, http.StatusBadRequest, "Registration failed", err.Error())
+		utils.Error(w, http.StatusConflict, "Registration failed", err.Error())
 		return
 	}
 
