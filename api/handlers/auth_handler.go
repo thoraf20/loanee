@@ -84,7 +84,7 @@ func (h *AuthHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]string{"token": token}
+	response := map[string]string{ "token": token }
 	utils.JSON(w, http.StatusOK, "Login successful", response)
 }
 

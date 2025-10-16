@@ -14,13 +14,13 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			log.Warn().Msg("Missing Authorization header")
-			utils.Error(w, http.StatusUnauthorized, "Unauthorized", "")
+			utils.Error(w, http.StatusUnauthorized, "Unauthorized", " Missing Authorization header")
 			return
 		}
 
 		if !strings.HasPrefix(authHeader, "Bearer ") {
 			log.Warn().Msg("Invalid Authorization header format")
-			utils.Error(w, http.StatusUnauthorized, "Invalid Authorization header format", "")
+			utils.Error(w, http.StatusUnauthorized, "Invalid Authorization header format", "Invalid Authorization header format")
 			return
 		}
 
@@ -30,7 +30,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		claims, err := utils.ValidateToken(tokenString)
 		if err != nil {
 			log.Warn().Err(err).Msg("Invalid or expired token")
-			utils.Error(w, http.StatusUnauthorized, "Invalid or expired token", "")
+			utils.Error(w, http.StatusUnauthorized, "Invalid or expired token", err.Error())
 			return
 		}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/thoraf20/loanee/internal/models"
 	repository "github.com/thoraf20/loanee/internal/repo"
+	"gorm.io/gorm"
 )
 
 type WalletService interface {
@@ -75,12 +76,13 @@ func (s *walletService) GenerateUserWallets(ctx context.Context, userID uuid.UUI
 
 func (s *walletService) GetUserWallets(ctx context.Context, userID uuid.UUID) ([]models.Wallet, error) {
 	user, err := s.userRepo.GetUserByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch user: %w", err)
-	}
-	if user == nil {
+	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	
 
 	wallets, err := s.walletRepo.GetUserWallets(ctx, userID.String())
 	if err != nil {

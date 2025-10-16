@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/thoraf20/loanee/internal/services"
+	"github.com/thoraf20/loanee/internal/utils"
 )
 
 type WalletHandler struct {
@@ -23,7 +23,7 @@ func (h *WalletHandler) GetUserWallets(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID, err := uuid.Parse(vars["user_id"])
 	if err != nil {
-		http.Error(w, "invalid user id", http.StatusBadRequest)
+		utils.Error(w, http.StatusBadRequest, "invalid user id", err.Error())
 		return
 	}
 
@@ -32,10 +32,10 @@ func (h *WalletHandler) GetUserWallets(w http.ResponseWriter, r *http.Request) {
 
 	wallets, err := h.walletService.GetUserWallets(ctx, userID)
 	if err != nil {
-		http.Error(w, "failed to fetch wallets", http.StatusInternalServerError)
+		utils.Error(w, http.StatusNotFound, "failed to fetch wallets", err.Error())
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(wallets)
+	utils.JSON(w, http.StatusOK, "Wallets fetched successfully", wallets)
 }
