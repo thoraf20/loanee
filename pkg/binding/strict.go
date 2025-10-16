@@ -3,27 +3,47 @@ package binding
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
 
-func StrictBindJSON[T any](c *gin.Context) (*T, error) {
+var validate = validator.New()
+
+type ValidationError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+type ValidationErrorResponse struct {
+	Message string            `json:"message"`
+	Errors  []ValidationError  `json:"errors,omitempty"`
+}
+
+func StrictBindJSON[T any](r *http.Request) (*T, *ValidationErrorResponse) {
 	var obj T
 
-	decoder := json.NewDecoder(c.Request.Body)
+	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
-	if err := decoder.Decode(&obj); 
-	err != nil {
-		return nil, fmt.Errorf("invalid request body: %w", err)
+	if err := decoder.Decode(&obj); err != nil {
+		return nil, &ValidationErrorResponse{
+			Message: fmt.Sprintf("Invalid request body: %v", err.Error()),
+		}
 	}
 
-	if v, ok := binding.Validator.Engine().(*validator.Validate); 
-	ok {
-		if err := v.Struct(obj); err != nil {
-			return nil, fmt.Errorf("validation error: %w", err)
+	if err := validate.Struct(obj); err != nil {
+		var validationErrors []ValidationError
+		for _, err := range err.(validator.ValidationErrors) {
+			validationErrors = append(validationErrors, ValidationError{
+				Field:   err.Field(),
+				Message: fmt.Sprintf("Field validation for '%s' failed on the '%s' rule", err.Field(), err.Tag()),
+			})
+		}
+
+		return nil, &ValidationErrorResponse{
+			Message: "Validation failed",
+			Errors:  validationErrors,
 		}
 	}
 

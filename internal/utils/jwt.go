@@ -29,7 +29,6 @@ func GenerateToken(user models.User) (string, error) {
 		return "", errors.New("JWT secret is not configured")
 	}
 
-	// Set token expiration time (e.g., 24 hours)
 	expirationTime := time.Now().Add(24 * time.Hour)
 
 	// Create claims with user information

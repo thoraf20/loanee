@@ -25,6 +25,10 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	authRouter := api.PathPrefix("/auth").Subrouter()
 	HandleAuthRoutes(authRouter, &gorm.DB{})
 
+	//user
+	userRouter := api.PathPrefix("/user").Subrouter()
+	HandleUserRoutes(userRouter, &gorm.DB{})
+
 	//wallet
 	walletRouter := api.PathPrefix("/wallets").Subrouter()
 	HandleWalletRoutes(walletRouter, &gorm.DB{})
