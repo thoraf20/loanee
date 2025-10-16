@@ -25,6 +25,10 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	authRouter := api.PathPrefix("/auth").Subrouter()
 	HandleAuthRoutes(authRouter, &gorm.DB{})
 
+	//wallet
+	walletRouter := api.PathPrefix("/wallets").Subrouter()
+	HandleWalletRoutes(walletRouter, &gorm.DB{})
+
 	// Health check
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		utils.JSON(w, http.StatusOK, "Service is healthy", map[string]interface{}{

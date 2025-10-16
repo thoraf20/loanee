@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	database "github.com/thoraf20/loanee/db"
 	"github.com/thoraf20/loanee/internal/cache"
 	"github.com/thoraf20/loanee/internal/dtos"
 	"github.com/thoraf20/loanee/internal/models"
-	"github.com/thoraf20/loanee/internal/repo"
+	repository "github.com/thoraf20/loanee/internal/repo"
 	"github.com/thoraf20/loanee/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -32,11 +34,9 @@ type authService struct {
 }
 
 // NewAuthService creates a new auth service instance
-func NewAuthService(repo repository.UserRepository) AuthService {
-	return &authService{repo: repo}
+func NewAuthService(r repository.UserRepository) AuthService {
+	return &authService{repo: r}
 }
-
-// RegisterUser handles user registration
 func (s *authService) RegisterUser(ctx context.Context, input dtos.RegisterUserDTO) (*models.User, error) {
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 
@@ -108,6 +108,15 @@ func (s *authService) VerifyEmail(ctx context.Context, input dtos.VerifyEmailDTO
 
 	if err := s.repo.UpdateUser(ctx, user); err != nil {
 		return nil, fmt.Errorf("failed to update password: %w", err)
+	}
+
+	//user account should be verified because wallet is generated
+	userRepo := repository.NewUserRepository(database.DB)
+	walletRepo := repository.NewWalletRepository(database.DB)
+	walletService := NewWalletService(walletRepo, userRepo)
+
+	if err := walletService.GenerateUserWallets(ctx, user.ID); err != nil {
+		log.Printf("Failed to generate wallets: %v", err)
 	}
 
 	cache.Redis.Del(cache.Ctx, cacheKey)

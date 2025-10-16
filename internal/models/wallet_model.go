@@ -7,12 +7,13 @@ import (
 )
 
 type Wallet struct {
-	ID      uuid.UUID  `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	UserID  uuid.UUID  `json:"user_id" gorm:"type:uuid;not null"`
-	AssetType  string    `json:"asset_type" db:"asset_type"` // e.g. ETH, BNB
-	Address    string    `json:"address" db:"address"`
-	Balance    float64   `json:"balance" db:"balance"`
-	IsPrimary  bool      `json:"is_primary" db:"is_primary"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
+	ID              uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	UserID  				uuid.UUID  `gorm:"type:uuid;not null" json:"user_id"`
+	AssetType  			string    `gorm:"asset_type" db:"asset_type"` // e.g. ETH, BNB
+	Address    			string    `gorm:"address" db:"address"`
+	PrivateKey  		string    `gorm:"type:text" json:"-"`
+	Balance    			float64   `gorm:"balance" db:"balance"`
+	IsPrimary  			bool      `gorm:"is_primary" db:"is_primary"`
+	CreatedAt   		time.Time
+	UpdatedAt   		time.Time
 }
