@@ -33,6 +33,10 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	walletRouter := api.PathPrefix("/wallets").Subrouter()
 	HandleWalletRoutes(walletRouter, &gorm.DB{})
 
+	//collateral
+	collateralRouter := api.PathPrefix("/collaterals").Subrouter()
+	HandleCollateralRoutes(collateralRouter, &gorm.DB{})
+
 	// Health check
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		utils.JSON(w, http.StatusOK, "Service is healthy", map[string]interface{}{
