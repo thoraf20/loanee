@@ -8,10 +8,10 @@ type AddCollateralDTO struct {
 
 
 type CollateralPreviewItem struct {
-	Asset          string  `json:"asset"`
+	AssetSymbol          string  `json:"asset"`
 	FiatCurrency   string  `json:"fiat_currency"`
 	LoanAmount     float64 `json:"loan_amount"`
-	LTV            float64 `json:"ltv"`
+	CollateralLTV            float64 `json:"ltv"`
 	AssetPrice     float64 `json:"asset_price"`
 	RequiredValue  float64 `json:"required_value"`
 	RequiredAmount float64 `json:"required_amount"`

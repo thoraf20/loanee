@@ -44,14 +44,15 @@ func (p *priceService) GetPrice(assetSymbol, fiatCurrency string) (float64, erro
 }
 
 func (p *priceService) GetPrices(fiatCurrency string) (map[string]float64, error) {
-	assetIDs := []string{}
+	assetIDs := make([]string, 0, len(assetMap))
 	for _, id := range assetMap {
 		assetIDs = append(assetIDs, id)
 	}
 
+	ids := strings.Join(assetIDs, ",")
 	url := fmt.Sprintf(
 		"https://api.coingecko.com/api/v3/simple/price?ids=%s&vs_currencies=%s",
-		strings.Join(assetIDs, ","),
+		ids,
 		fiatCurrency,
 	)
 
@@ -72,9 +73,14 @@ func (p *priceService) GetPrices(fiatCurrency string) (map[string]float64, error
 
 	result := make(map[string]float64)
 	for symbol, id := range assetMap {
-		if val, ok := data[id][fiatCurrency]; ok {
+		// CoinGecko requires lowercase fiat codes
+		if val, ok := data[id][strings.ToLower(fiatCurrency)]; ok {
 			result[symbol] = val
 		}
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no prices found for fiat currency: %s", fiatCurrency)
 	}
 
 	return result, nil
