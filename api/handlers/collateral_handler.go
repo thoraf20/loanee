@@ -1,11 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/thoraf20/loanee/internal/dtos"
 	"github.com/thoraf20/loanee/internal/services"
 	"github.com/thoraf20/loanee/internal/utils"
+	"github.com/thoraf20/loanee/pkg/binding"
 )
 
 type CollateralHandler struct {
@@ -45,4 +49,30 @@ func (h *CollateralHandler) PreviewCollateral(w http.ResponseWriter, r *http.Req
 	}
 
 	utils.JSON(w, http.StatusOK, "Collateral preview successful", result)
+}
+
+func (h *CollateralHandler) LockCollateral(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	userID, err := utils.GetUserIDFromContext(ctx)
+	if err != nil {
+		utils.Error(w, http.StatusUnauthorized, "Unauthorized", err.Error())
+		return
+	}
+
+	var dto dtos.CollateralLockDTO
+	_, verr := binding.StrictBindJSON[dtos.CollateralLockDTO](r)
+	if verr != nil {
+		utils.Error(w, http.StatusBadRequest, verr.Message, verr)
+		return
+	}
+
+	collateral, err := h.CollateralService.LockCollateral(ctx, userID, dto)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Failed to lock collateral", err.Error())
+		return
+	}
+
+	utils.JSON(w, http.StatusOK, "Collateral locked successfully", collateral)
 }

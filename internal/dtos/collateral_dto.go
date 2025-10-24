@@ -23,3 +23,10 @@ type CollateralPreviewResponse struct {
 	LoanAmount   float64                      `json:"loan_amount"`
 	Previews     []CollateralPreviewItem  `json:"previews"`
 }
+
+type CollateralLockDTO struct {
+	LoanRequestID string  `json:"loan_request_id" validate:"required,uuid4"`
+	AssetSymbol   string  `json:"asset_symbol" validate:"required,oneof=BTC ETH USDT"`
+	TxHash        string  `json:"tx_hash" validate:"required"`
+	Amount        float64 `json:"amount" validate:"required,gt=0"`
+}
