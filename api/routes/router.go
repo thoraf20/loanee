@@ -18,6 +18,15 @@ import (
 func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	r := mux.NewRouter()
 
+	// Health check
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		utils.JSON(w, http.StatusOK, "Service is healthy", map[string]interface{}{
+			"status":      "ok",
+			"timestamp":   time.Now().Format(time.RFC3339),
+			"environment": cfg.AppEnv,
+		})
+	}).Methods(http.MethodGet)
+
 	// API grouping
 	api := r.PathPrefix("/api/v1").Subrouter()
 
@@ -26,7 +35,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	HandleAuthRoutes(authRouter, &gorm.DB{})
 
 	//user
-	userRouter := api.PathPrefix("/user").Subrouter()
+	userRouter := api.PathPrefix("/users").Subrouter()
 	HandleUserRoutes(userRouter, &gorm.DB{})
 
 	//wallet
@@ -37,15 +46,6 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	collateralRouter := api.PathPrefix("/collaterals").Subrouter()
 	HandleCollateralRoutes(collateralRouter, &gorm.DB{})
 
-	// Health check
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		utils.JSON(w, http.StatusOK, "Service is healthy", map[string]interface{}{
-				"status":      "ok",
-				"timestamp":   time.Now().Format(time.RFC3339),
-				"environment": cfg.AppEnv,
-		})
-	}).Methods(http.MethodGet)
-
 	// Swagger JSON (optional if you didn’t generate docs.go)
 	r.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, "docs/swagger.json")
@@ -53,7 +53,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 
 	// Swagger UI
 	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-			httpSwagger.URL("/swagger/doc.json"),
+		httpSwagger.URL("/swagger/doc.json"),
 	))
 	err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		t, _ := route.GetPathTemplate()

@@ -12,11 +12,11 @@ import (
 
 type CollateralRepository interface {
 	Create(ctx context.Context, collateral *models.Collateral) error
-	GetByID(ctx context.Context, id uuid.UUID) (*models.Collateral, error)
+	GetCollateralByID(ctx context.Context, id uuid.UUID) (*models.Collateral, error)
 	GetByUserID(ctx context.Context, userID uuid.UUID) ([]models.Collateral, error)
 	GetByLoanRequestID(ctx context.Context, loanRequestID uuid.UUID) (*models.Collateral, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status models.CollateralStatus) error
-	UpdateTxInfo(ctx context.Context, id uuid.UUID, txHash, walletAddress string) error
+	UpdateCollateralTxInfo(ctx context.Context, id uuid.UUID, txHash, walletAddress, status string) error
 }
 
 type collateralRepository struct {
@@ -41,7 +41,7 @@ func (r *collateralRepository) Create(ctx context.Context, collateral *models.Co
 	return nil
 }
 
-func (r *collateralRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Collateral, error) {
+func (r *collateralRepository) GetCollateralByID(ctx context.Context, id uuid.UUID) (*models.Collateral, error) {
 	var collateral models.Collateral
 	if err := r.db.WithContext(ctx).First(&collateral, "id = ?", id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -77,11 +77,13 @@ func (r *collateralRepository) UpdateStatus(ctx context.Context, id uuid.UUID, s
 		Update("status", status).Error
 }
 
-func (r *collateralRepository) UpdateTxInfo(ctx context.Context, id uuid.UUID, txHash, walletAddress string) error {
+func (r *collateralRepository) UpdateCollateralTxInfo(ctx context.Context, id uuid.UUID, txHash, walletAddress, status string) error {
 	updates := map[string]interface{}{
 		"tx_hash":        txHash,
 		"wallet_address": walletAddress,
+		"status": 				status,
 		"updated_at":     time.Now(),
+		"verified_at":    time.Now(),
 	}
 	return r.db.WithContext(ctx).Model(&models.Collateral{}).
 		Where("id = ?", id).

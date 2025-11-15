@@ -26,4 +26,5 @@ func HandleAuthRoutes(api *mux.Router, db *gorm.DB) {
 	api.HandleFunc("/login", authHandler.LoginUser).Methods(http.MethodPost)
 	api.HandleFunc("/password-reset/request", authHandler.PasswordResetRequest).Methods(http.MethodPost)
 	api.HandleFunc("/password/reset", authHandler.PasswordReset).Methods(http.MethodPost)
+	api.HandleFunc("/resend-code", authHandler.ResendCode).Methods(http.MethodPost)
 }

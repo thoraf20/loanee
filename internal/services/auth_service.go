@@ -26,6 +26,7 @@ type AuthService interface {
 	LoginUser(ctx context.Context, input dtos.LoginDTO) (string, error)
 	PasswordResetRequest(ctx context.Context, input dtos.PasswordRequestDTO) (map[string]string, error)
 	PasswordReset(ctx context.Context, input dtos.PasswordResetDTO) (map[string]string, error)
+	ResendCode(ctx context.Context, email string) (map[string]string, error)
 }
 
 // authService implementation
@@ -110,7 +111,7 @@ func (s *authService) VerifyEmail(ctx context.Context, input dtos.VerifyEmailDTO
 		return nil, fmt.Errorf("failed to update password: %w", err)
 	}
 
-	//user account should be verified because wallet is generated
+	//user account should be verified before wallet is generated
 	userRepo := repository.NewUserRepository(database.DB)
 	walletRepo := repository.NewWalletRepository(database.DB)
 	walletService := NewWalletService(walletRepo, userRepo)
@@ -209,4 +210,24 @@ func (s *authService) PasswordReset(ctx context.Context, input dtos.PasswordRese
 	return map[string]string{
 		"message": "password reset successful",
 	}, nil
+}
+
+func (s * authService) ResendCode(ctx context.Context, email string) (map[string]string, error) {
+	userEmal := strings.ToLower(strings.TrimSpace(email))
+	user, err := s.repo.GetUserByEmail(ctx, userEmal)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	code := utils.GenerateCode(6)
+
+	fmt.Print(code, "code")
+
+	// Store code in Redis with TTL (10 minutes)
+	cacheKey := fmt.Sprintf("email-verification-%s", email)
+	cache.CacheSet(cacheKey, code, 10*time.Minute)
+
+	return map[string]string{
+		"message": "code resend successful",
+	}, nil 
 }

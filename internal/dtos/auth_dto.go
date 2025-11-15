@@ -9,7 +9,7 @@ type RegisterUserDTO struct {
 
 type VerifyEmailDTO struct {
 	Email    string `json:"email" validate:"required,email"`
-	Code     string `json:"code" validate:"required,code"`
+  Code 		 string `json:"code" validate:"required,min=6,max=8,alphanum"`
 }
 
 type LoginDTO struct {
@@ -25,4 +25,8 @@ type PasswordResetDTO struct {
 	Email    string `json:"email" validate:"required,email"`
 	Code     string `json:"code" validate:"required,code"`
 	NewPassword string `json:"new_password" validate:"required,new_password"`
+}
+
+type CodeResendDTO struct {
+	Email    string `json:"email" validate:"required,email"`
 }

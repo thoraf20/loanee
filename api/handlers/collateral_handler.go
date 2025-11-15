@@ -42,7 +42,10 @@ func (h *CollateralHandler) PreviewCollateral(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	result, err := h.CollateralService.PreviewCollateral(loanAmount, fiatCurrency)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	
+	result, err := h.CollateralService.PreviewCollateral(ctx, loanAmount, fiatCurrency)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Failed to preview collateral", err.Error())
 		return
@@ -75,4 +78,48 @@ func (h *CollateralHandler) LockCollateral(w http.ResponseWriter, r *http.Reques
 	}
 
 	utils.JSON(w, http.StatusOK, "Collateral locked successfully", collateral)
+}
+
+// func (h *CollateralHandler) VerifyCollateralTransaction(w http.ResponseWriter, r *http.Request) {
+//     var req models.VerifyCollateralRequest
+//     if err := c.ShouldBindJSON(&req); err != nil {
+//         utils.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+//         return
+//     }
+
+//     ctx := c.Request.Context()
+//     result, err := h.CollateralService.VerifyTransaction(ctx, req)
+//     if err != nil {
+//         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+//         return
+//     }
+
+//     c.JSON(http.StatusOK, result)
+// }
+
+func (h *CollateralHandler) CreateCollateral(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	userID, err := utils.GetUserIDFromContext(ctx)
+	if err != nil {
+		utils.Error(w, http.StatusUnauthorized, "Unauthorized", err.Error())
+		return
+	}
+
+	var dto dtos.CreateCollateralRequestDTO
+	dto.UserID = userID
+	_, verr := binding.StrictBindJSON[dtos.CreateCollateralRequestDTO](r)
+	if verr != nil {
+		utils.Error(w, http.StatusBadRequest, verr.Message, verr)
+		return
+	}
+
+	collateral, err := h.CollateralService.CreateCollateralRequest(ctx, dto)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Failed to submit collateral", err.Error())
+		return
+	}
+
+	utils.JSON(w, http.StatusOK, "Collateral submitted successfully", collateral)
 }

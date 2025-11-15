@@ -14,8 +14,9 @@ func RunMigrations(cfg *config.Config) {
 
 	err := DB.AutoMigrate(
 		&models.User{},
-		&models.Collateral{},
-		&models.Loan{},
+		&models.Wallet{},
+		// &models.Collateral{},
+		// &models.Loan{},
 	)
 	if err != nil {
 		log.Fatalf("Migration init failed: %v", err)

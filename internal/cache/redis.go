@@ -14,8 +14,8 @@ var Ctx = context.Background()
 
 func InitRedis() {
 	Redis = redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_URL"), // e.g. localhost:6379
-		Password: "",                     // or set from env
+		Addr:     os.Getenv("REDIS_URL"),
+		Password: "",                   
 		DB:       0,
 	})
 
@@ -26,12 +26,14 @@ func InitRedis() {
 	log.Println("Connected to Redis")
 }
 
-// CacheSet sets a key with TTL (seconds)
-func CacheSet(key string, value string, ttl time.Duration) {
+func CacheSet(key, value string, ttl time.Duration) {
 	Redis.Set(Ctx, key, value, ttl)
 }
 
-// CacheGet gets cached value if exists
 func CacheGet(key string) (string, error) {
 	return Redis.Get(Ctx, key).Result()
+}
+
+func CacheDelete(key string) error {
+	return Redis.Del(Ctx, key).Err()
 }

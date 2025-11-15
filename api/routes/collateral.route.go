@@ -5,6 +5,7 @@ import (
 	"github.com/thoraf20/loanee/api/handlers"
 	repository "github.com/thoraf20/loanee/internal/repo"
 	"github.com/thoraf20/loanee/internal/services"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/gorilla/mux"
@@ -14,12 +15,15 @@ func HandleCollateralRoutes(api *mux.Router, db *gorm.DB) {
 		panic("nil *gorm.DB passed to HandleAuthRoutes")
 	}
 
-	priceService := services.NewPriceService()
+	logger, _ := zap.NewProduction()
+	priceService := services.NewCoinGeckoProvider(logger, "")
 	collateralRepo := repository.NewCollateralRepository(db)
-	collateralService := services.NewCollateralService(collateralRepo, priceService)
+	walletRepo := repository.NewWalletRepository(db)
+	collateralService := services.NewCollateralService(collateralRepo, priceService, &services.EthereumVerifier{}, walletRepo)
 	collateralHandler := handlers.NewCollateralHandler(collateralService)
 
 	protectedRouter := ApplyAuthMiddleware(api, &zerolog.Logger{})
 	protectedRouter.HandleFunc("/preview", collateralHandler.PreviewCollateral).Methods("GET")
 	protectedRouter.HandleFunc("/lock", collateralHandler.LockCollateral).Methods("POST")
+	protectedRouter.HandleFunc("/create", collateralHandler.CreateCollateral).Methods("POST")
 }

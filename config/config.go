@@ -8,11 +8,20 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type BlockchainConfig struct {
+	Ethereum struct {
+		RPCURL           string `mapstructure:"rpc_url"`
+		MinConfirmations int    `mapstructure:"min_confirmations"`
+	} `mapstructure:"ethereum"`
+}
+
 type Config struct {
 	Database  DatabaseConfig
 	Server    ServerConfig
 	JWTSecret string
 	AppEnv       string
+	DefaultLTV string
+	Blockchain BlockchainConfig `mapstructure:"blockchain"`
 }
 
 type DatabaseConfig struct {
@@ -59,6 +68,7 @@ func LoadConfig() (*Config, error) {
 		},
 		JWTSecret: getEnv("JWT_SECRET", "your-256-bit-secret"),
 		AppEnv:       getEnv("APP_ENV", "development"),
+		DefaultLTV: getEnv("DEFAULT_LTV", "0.65"),
 	}, nil
 }
 
