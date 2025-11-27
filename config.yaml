@@ -1,0 +1,48 @@
+# config.yaml
+
+app:
+  name: "loanee"
+  environment: "development"
+  version: "1.0.0"
+  require_email_verification: false
+
+server:
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 10s
+  idle_timeout: 120s
+  allowed_origins: "*"
+
+database:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "postgres"
+  dbname: "loanee"
+  sslmode: "disable"
+
+jwt:
+  secret: "your-super-secret-jwt-key-change-in-production"
+  access_token_expiry: 15m
+  refresh_token_expiry: 168h # 7 days
+
+loan:
+  default_ltv: 0.7
+  max_ltv: 0.8
+  min_ltv: 0.5
+  default_interest_rate: 8.5
+  late_penalty_per_day: 10.0
+
+coingecko:
+  api_key: ""
+  base_url: "https://api.coingecko.com/api/v3"
+
+redis:
+  enabled: true  # Set to false to use in-memory blacklist
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+
+log:
+  level: "info"

@@ -2,126 +2,129 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
-	"github.com/rs/cors"
-	"github.com/rs/zerolog/log"
-
-	"github.com/thoraf20/loanee/api/routes"
-	config "github.com/thoraf20/loanee/config"
-	database "github.com/thoraf20/loanee/db"
-	"github.com/thoraf20/loanee/internal/cache"
-	// repository "github.com/thoraf20/loanee/internal/repo"
-	// "github.com/thoraf20/loanee/internal/services"
-	utils "github.com/thoraf20/loanee/internal/utils"
-	// "github.com/thoraf20/loanee/pkg/chain"
+	"github.com/rs/zerolog"
+	"github.com/thoraf20/loanee/config"
+	"github.com/thoraf20/loanee/internal/container"
+	"github.com/thoraf20/loanee/internal/router"
 )
 
+// @title Loanee API
+// @version 1.0
+// @description Crypto-backed lending platform API
+// @termsOfService http://swagger.io/terms/
+
+// @contact.email thoraf20@gmail.com
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /api/v1
+// @schemes http https
+
+// @securityDefinitions.apikey Bearer
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
 func main() {
-  if err := godotenv.Load(); err != nil {
-		log.Warn().Msg("No .env file found, using environment variables")
-	}
-
-	cfg, err := config.LoadConfig()
+	// Load configuration
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to load configurations")
+		fmt.Printf("Failed to load config: %v\n", err)
+		os.Exit(1)
 	}
 
-	utils.InitLogger(cfg.AppEnv)
-	log.Info().Msg("Logger initialized successfully")
+	// Initialize logger
+	logger := initLogger(cfg)
+	logger.Info().
+		Str("environment", cfg.App.Environment).
+		Str("version", cfg.App.Version).
+		Msg("Starting Loanee API")
 
-	if err := database.Connect(cfg); 
-	err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to database")
-	}
-	defer closeDatabase()
-	log.Info().Msg("Database connected successfully")
-
-	database.RunMigrations(cfg)
-	log.Info().Msg("Database migrations completed")
-
-	goOrm, err := database.DB.DB()
+	// Initialize dependency container
+	c, err := container.New(cfg, logger)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to obtain sql.DB from gorm.DB")
+		logger.Fatal().Err(err).Msg("Failed to initialize container")
+	}
+	defer c.Shutdown()
+
+	// Setup router with all handlers from container
+	r := router.Setup(c)
+
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
+		Handler:      r,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
 
-	cache.InitRedis()
-	log.Info().Msg("Redis cache initialized successfully")
-
-	// collateralRepo := repository.NewCollateralRepository(database.DB)
-	// priceService := services.NewPriceService()
-
-	// ethVerifier := chain.NewEthereumVerifier(
-	// 	cfg.Blockchain.Ethereum.RPCURL,
-	// 	cfg.Blockchain.Ethereum.MinConfirmations,
-	// )
-	// ethVerifier, err := chain.NewEthereumVerifier(cfg.Blockchain.Ethereum.RPCURL, cfg.Blockchain.Ethereum.MinConfirmations)
-	// if err != nil {
-	// 	log.Fatal().Err(err).Msg("failed to initialize Ethereum verifier")
-	// }
-
-	// verifiers := map[string]chain.ChainVerifier{
-  //   "ETH": ethVerifier,
-  //   "USDT": ethVerifier, // assuming ERC20 USDT for now
-	// }
-
-	// routes.NewRouter expects *sql.DB, pass the underlying *sql.DB
-	router := routes.NewRouter(cfg, goOrm)
-
-	corsMiddleware := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	})
-
-	server := &http.Server{
-		Addr:              ":" + cfg.Server.AppPort,
-		Handler:           corsMiddleware.Handler(router),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
+	// Start server in goroutine
 	go func() {
-		log.Info().Msgf("Server started on port %s", cfg.Server.AppPort)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("server crashed unexpectedly")
+		logger.Info().
+			Int("port", cfg.Server.Port).
+			Msg("Server starting")
+
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal().Err(err).Msg("Server failed to start")
 		}
 	}()
 
-	waitForShutdown(server)
-}
-
-func closeDatabase() {
-	sqlDB, err := database.DB.DB()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to obtain sql.DB for closing")
-		return
-	}
-	if err := sqlDB.Close(); err != nil {
-		log.Error().Err(err).Msg("Failed to close database connection")
-	}
-	log.Info().Msg("Database connection closed cleanly")
-}
-
-func waitForShutdown(server *http.Server) {
+	// Wait for interrupt signal for graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Warn().Msg("Server shutting down gracefully...")
+	logger.Info().Msg("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Graceful shutdown with 30 second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatal().Err(err).Msg("Forced to shutdown server")
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal().Err(err).Msg("Server forced to shutdown")
 	}
 
-	log.Info().Msg("Server stopped cleanly")
+	logger.Info().Msg("Server exited gracefully")
+}
+
+// initLogger initializes zerolog logger based on environment
+func initLogger(cfg *config.Config) zerolog.Logger {
+  zerolog.TimeFieldFormat = time.RFC3339
+
+	var logger zerolog.Logger
+
+	if cfg.App.Environment == "production" {
+		logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	} else {
+		logger = zerolog.New(zerolog.ConsoleWriter{
+				Out:        os.Stdout,
+				TimeFormat: time.RFC3339,
+		}).With().Timestamp().Caller().Logger()
+	}
+
+	// Set log level
+	switch cfg.Log.Level {
+	case "debug":
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case "info":
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	case "warn":
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case "error":
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	default:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+
+	return logger
 }
